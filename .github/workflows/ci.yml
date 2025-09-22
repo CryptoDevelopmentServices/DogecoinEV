@@ -9,9 +9,33 @@ on:
       - 'doc/**'
       - 'contrib/**'
       - '**/*.md'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Select build target'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          # From DogecoinEV
+          - aarch64-linux
+          - aarch64-linux-experimental
+          - armhf-linux
+          - i686-linux
+          - i686-win
+          - x86_64-linux-dbg
+          - x86_64-linux-nowallet
+          - x86_64-macos
+          - x86_64-win
+          - x86_64-win-experimental
+          - x86_64-linux-experimental
+          - x86_64-linux
+
 
 jobs:
   build:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || matrix.name == inputs.target }}
     name: ${{ matrix.name }}
 
     env:
@@ -25,11 +49,13 @@ jobs:
       WINEDEBUG: fixme-all
       SDK_URL: https://depends.dogecoincore.org
       BIONIC_LIEF_WHL: lief-0.12.3-cp36-cp36m-linux_x86_64.whl
+      WINEPREFIX: /tmp/wineprefix/   
 
     strategy:
       fail-fast: false
       matrix:
         name:
+          # all distinct entries from both workflows
           - aarch64-linux
           - aarch64-linux-experimental
           - armhf-linux
@@ -41,7 +67,9 @@ jobs:
           - x86_64-win
           - x86_64-win-experimental
           - x86_64-linux-experimental
+          - x86_64-linux
         include:
+          # --- DogecoinEV entries ---
           - name: i686-linux
             host: i686-pc-linux-gnu
             os: ubuntu-20.04
@@ -56,6 +84,7 @@ jobs:
             dep-opts: "NO_QT=1"
             config-opts: "--enable-zmq --enable-glibc-back-compat LDFLAGS=-static-libstdc++"
             goal: install
+
           - name: armhf-linux
             host: arm-linux-gnueabihf
             os: ubuntu-20.04
@@ -68,6 +97,7 @@ jobs:
             dep-opts: "NO_QT=1"
             config-opts: "--enable-glibc-back-compat LDFLAGS=-static-libstdc++"
             goal: install
+
           - name: aarch64-linux-experimental
             host: aarch64-linux-gnu
             os: ubuntu-20.04
@@ -80,6 +110,7 @@ jobs:
             dep-opts: "NO_QT=1"
             config-opts: "--enable-experimental --with-armv8-crypto --with-armv82-crypto --enable-zmq --enable-glibc-back-compat LDFLAGS=-static-libstdc++"
             goal: install
+
           - name: aarch64-linux
             host: aarch64-linux-gnu
             os: ubuntu-20.04
@@ -92,6 +123,7 @@ jobs:
             dep-opts: "NO_QT=1"
             config-opts: "--enable-zmq --enable-glibc-back-compat LDFLAGS=-static-libstdc++"
             goal: install
+
           - name: x86_64-linux-nowallet
             host: x86_64-unknown-linux-gnu
             os: ubuntu-20.04
@@ -104,6 +136,7 @@ jobs:
             dep-opts: "NO_WALLET=1"
             config-opts: "--with-gui=qt5 --enable-glibc-back-compat --disable-wallet LDFLAGS=-static-libstdc++"
             goal: install
+
           - name: x86_64-linux-dbg
             host: x86_64-unknown-linux-gnu
             os: ubuntu-20.04
@@ -118,6 +151,7 @@ jobs:
             dep-opts: "DEBUG=1"
             config-opts: "--with-gui=qt5 --enable-zmq --enable-glibc-back-compat CPPFLAGS=-DDEBUG_LOCKORDER"
             goal: install
+
           - name: i686-win
             host: i686-w64-mingw32
             os: ubuntu-20.04
@@ -134,7 +168,7 @@ jobs:
               sudo apt-get purge -yq libmono* moby* mono* php* libgdiplus libpcre2-posix3 libzip4
             postinstall: |
               sudo update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix
-              sudo update-alternatives --set i686-w64-mingw32-g++  /usr/bin/i686-w64-mingw32-g++-posix
+              sudo update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix
               sudo update-binfmts --import /usr/share/binfmts/wine
             run-bench: false
             test-script: |
@@ -144,14 +178,15 @@ jobs:
             dep-opts: ""
             config-opts: "--enable-gui=qt5"
             goal: install
+
           - name: x86_64-win
             host: x86_64-w64-mingw32
             os: ubuntu-20.04
             packages: python3 nsis g++-mingw-w64-x86-64 wine64 bc wine-binfmt
             postinstall: |
               sudo dpkg -s mono-runtime && sudo apt-get remove mono-runtime || echo "Nothing to uninstall."
-              sudo update-alternatives --set x86_64-w64-mingw32-gcc  /usr/bin/x86_64-w64-mingw32-gcc-posix
-              sudo update-alternatives --set x86_64-w64-mingw32-g++  /usr/bin/x86_64-w64-mingw32-g++-posix
+              sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+              sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
               sudo update-binfmts --import /usr/share/binfmts/wine
             run-bench: false
             test-script: |
@@ -161,14 +196,15 @@ jobs:
             dep-opts: ""
             config-opts: "--enable-gui=qt5"
             goal: install
+
           - name: x86_64-win-experimental
             host: x86_64-w64-mingw32
             os: ubuntu-20.04
             packages: python3 nsis g++-mingw-w64-x86-64 wine64 bc wine-binfmt
             postinstall: |
               sudo dpkg -s mono-runtime && sudo apt-get remove mono-runtime || echo "Very nothing to uninstall."
-              sudo update-alternatives --set x86_64-w64-mingw32-gcc  /usr/bin/x86_64-w64-mingw32-gcc-posix
-              sudo update-alternatives --set x86_64-w64-mingw32-g++  /usr/bin/x86_64-w64-mingw32-g++-posix
+              sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+              sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
               sudo update-binfmts --import /usr/share/binfmts/wine
             run-bench: false
             test-script: |
@@ -178,11 +214,13 @@ jobs:
             dep-opts: "AVX2=1 MINGW=1"
             config-opts: "--enable-experimental --enable-scrypt-sse2 --with-intel-avx2 --with-gui=qt5"
             goal: install
+
           - name: x86_64-macos
             host: x86_64-apple-darwin11
             os: ubuntu-20.04
-            packages: cmake imagemagick libcap-dev librsvg2-bin libz-dev libtiff-tools libtinfo5 xorriso
+            packages: cmake imagemagick libcap-dev librsvg2-bin libz-dev libbz2-dev libtiff-tools libtinfo5 xorriso
             run-bench: false
+            test-script: 
             check-security: true
             check-symbols: false
             dep-opts: ""
@@ -190,6 +228,7 @@ jobs:
             goal: deploy
             sdk: 10.11
             sdk-shasum: "bec9d089ebf2e2dd59b1a811a38ec78ebd5da18cbbcd6ab39d1e59f64ac5033f"
+
           - name: x86_64-linux-experimental
             host: x86_64-linux-gnu
             os: ubuntu-20.04
@@ -201,6 +240,17 @@ jobs:
               qa/pull-tester/rpc-tests.py --coverage
             dep-opts: "AVX2=1"
             config-opts: "--enable-experimental --enable-scrypt-sse2 --with-intel-avx2 --with-gui=qt5 --enable-zmq --enable-glibc-back-compat --enable-reduce-exports"
+            goal: install
+
+          - name: x86_64-linux
+            host: x86_64-unknown-linux-gnu
+            os: ubuntu:20.04
+            packages: python3 g++-multilib bc python3-zmq
+            run-bench: false
+            check-security: true
+            check-symbols: false
+            dep-opts: "NO_QT=1"
+            config-opts: "--enable-zmq --enable-glibc-back-compat LDFLAGS=-static-libstdc++ --disable-tests"
             goal: install
 
     runs-on: ${{ matrix.os }}
@@ -250,9 +300,9 @@ jobs:
         run: |
           mkdir -p ./depends/sdk-sources
           mkdir -p ./depends/SDKs
-          echo "${{ matrix.sdk-shasum }}  depends/sdk-sources/${{ env.sdk-filename }}" | sha256sum -c || \
+          echo "${{ matrix.sdk-shasum }} depends/sdk-sources/${{ env.sdk-filename }}" | sha256sum -c || \
           curl --location --fail $SDK_URL/${{ env.sdk-filename }} -o depends/sdk-sources/${{ env.sdk-filename }} &&\
-          echo "${{ matrix.sdk-shasum }}  depends/sdk-sources/${{ env.sdk-filename }}" | sha256sum -c
+          echo "${{ matrix.sdk-shasum }} depends/sdk-sources/${{ env.sdk-filename }}" | sha256sum -c
           tar -C depends/SDKs -xf depends/sdk-sources/${{ env.sdk-filename }}
 
       - name: Dependency cache
@@ -277,9 +327,10 @@ jobs:
 
       - name: Build DogecoinEV
         run: |
+          SHORT_COMMIT=$(echo "${{ github.sha }}" | cut -c1-7)
           depends/${{ matrix.host }}/native/bin/ccache --max-size=$CCACHE_SIZE
           ./autogen.sh
-          ./configure --prefix=`pwd`/depends/${{ matrix.host }} ${{ matrix.config-opts }} --enable-reduce-exports || ( cat config.log && false)
+          ./configure --prefix=`pwd`/depends/${{ matrix.host }} ${{ matrix.config-opts }} --enable-reduce-exports CFLAGS="-DGIT_COMMIT_ID=\\\"$SHORT_COMMIT\\\"" CXXFLAGS="-DGIT_COMMIT_ID=\\\"$SHORT_COMMIT\\\"" || ( cat config.log && false )
           make $MAKEJOBS ${{ matrix.goal }} || ( echo "Build failure. Verbose build follows." && make ${{ matrix.goal }} V=1 ; false )
 
       - name: Run benchmark
@@ -299,6 +350,10 @@ jobs:
       - name: Check symbols
         if: ${{ matrix.check-symbols }}
         run: make -C src check-symbols
+
+      - name: Cleanup qa artifacts
+        run: |
+          rm -rf qa/cache || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
